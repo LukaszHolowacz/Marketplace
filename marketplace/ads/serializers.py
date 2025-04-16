@@ -6,11 +6,11 @@ class AdSerializer(serializers.ModelSerializer):
         model = Ad
         fields = [
             'id', 'title', 'description', 'price', 'created_at', 'updated_at',
-            'is_active', 'image', 'user', 'category', 'location'
+            'is_active', 'image', 'user', 'category', 'city', 'street', 'postal_code'
         ]
         read_only_fields = ['created_at', 'updated_at', 'user']
         extra_kwargs = {
-            'price': {'required': True, 'min_value': 5.00},  
+            'price': {'required': True, 'min_value': 5.00},
             'image': {'required': False}
         }
     

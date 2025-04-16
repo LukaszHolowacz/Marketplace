@@ -9,8 +9,16 @@ class Ad(models.Model):
     is_active = models.BooleanField(default=True)
     image = models.ImageField(upload_to='ads/images/', blank=True, null=True)
     user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='ads')
-    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='ads')
-    location = models.CharField(max_length=255)
+    category = models.ForeignKey('categories.Category', on_delete=models.CASCADE, related_name='ads')
+    city = models.CharField(max_length=100)
+    street = models.CharField(max_length=255, blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['price']),  
+            models.Index(fields=['created_at']), 
+        ]
+    
     def __str__(self):
         return self.title

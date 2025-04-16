@@ -9,3 +9,10 @@ platformdirs==4.3.6
 setuptools==75.8.0
 sqlparse==0.5.3
 virtualenv==20.29.1
+django-filter==25.1 
+djangorestframework-simplejwt==5.2.2
+djangorestframework
+psycopg2-binary
+Pillow
+pytest
+pytest-django
