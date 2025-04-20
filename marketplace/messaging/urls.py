@@ -4,7 +4,7 @@ from .views import (
     MessageListView,
     MessageDetailView,
     MessageReadView,
-    MessageByAdView
+    MessageByAdView,
 )
 
 urlpatterns = [

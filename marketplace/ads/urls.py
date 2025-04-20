@@ -14,5 +14,5 @@ urlpatterns = [
     path('<int:pk>/', AdDetailView.as_view(), name='ad-detail'),
     path('<int:ad_id>/toggle-active/', AdToggleActiveView.as_view(), name='ad-toggle-active'),
     path('category/<int:category_id>/', AdByCategoryView.as_view(), name='ad-by-category'),
-    path('user/<int:user_id>/', AdByUserView.as_view(), name='ad-by-user'),
+    path('user/<int:user_id>/', AdByUserView.as_view(), name='ad-by-user'),  
 ]

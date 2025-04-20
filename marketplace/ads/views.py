@@ -72,3 +72,4 @@ class AdByUserView(generics.ListAPIView):
     def get_queryset(self):
         user_id = self.kwargs.get("user_id")
         return Ad.objects.filter(user_id=user_id, is_active=True)
+

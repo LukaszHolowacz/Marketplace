@@ -1,14 +1,12 @@
 from rest_framework import generics, permissions
 from .models import CustomUser, UserProfile
-from .serializers import UserSerializer, UserProfileSerializer
+from .serializers import UserSerializer, UserProfileSerializer, ChangePasswordSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from django.contrib.auth import update_session_auth_hash
-import re
-
 
 class UserCreateView(generics.CreateAPIView):
     serializer_class = UserSerializer
@@ -16,13 +14,13 @@ class UserCreateView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
 
 
-class UserListView(generics.ListAPIView):
+class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return CustomUser.objects.all()
-    
+    def get_object(self):
+        return self.request.user
+
 
 class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
@@ -51,28 +49,11 @@ class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def put(self, request):
-        user = request.user
-        old_password = request.data.get("old_password")
-        new_password = request.data.get("new_password")
-
-        if not user.check_password(old_password):
-            return Response({"detail": "Stare hasło jest niepoprawne."}, status=400)
-
-        if len(new_password) < 8:
-            return Response({"detail": "Nowe hasło musi mieć co najmniej 8 znaków."}, status=400)
-        if not re.search(r'[A-Z]', new_password):
-            return Response({"detail": "Nowe hasło musi zawierać co najmniej jedną wielką literę."}, status=400)
-        if not re.search(r'[a-z]', new_password):
-            return Response({"detail": "Nowe hasło musi zawierać co najmniej jedną małą literę."}, status=400)
-        if not re.search(r'[0-9]', new_password):
-            return Response({"detail": "Nowe hasło musi zawierać co najmniej jedną cyfrę."}, status=400)
-
-        user.set_password(new_password)
-        user.save()
-
-        update_session_auth_hash(request, user)
-
-        return Response({"detail": "Hasło zostało pomyślnie zmienione."}, status=200)
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        update_session_auth_hash(request, request.user)
+        return Response({"detail": "Hasło zostało zmienione."})
 
 class UserDeleteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
