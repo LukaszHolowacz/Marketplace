@@ -1,8 +1,7 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.core.validators import RegexValidator
 
 
 class CustomUserManager(BaseUserManager):
@@ -63,7 +62,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='profile')
-    avatar = models.ImageField(upload_to='users/avatars/', blank=True)
+    avatar = models.ImageField(upload_to='users/avatars/', blank=True, null=True, default='images/default-avatar.png')
     phone = models.CharField(max_length=15, blank=True)
     address = models.CharField(max_length=255, blank=True)
     bio = models.TextField(blank=True)

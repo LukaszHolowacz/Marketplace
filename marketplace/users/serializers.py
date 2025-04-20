@@ -1,7 +1,12 @@
 from rest_framework import serializers
-from django.core.validators import validate_email
+from django.core.validators import RegexValidator
 from .models import CustomUser, UserProfile
-import re
+from .validators import (
+    validate_unique_email,
+    validate_unique_username,
+    validate_password_strength
+)
+
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
@@ -40,45 +45,13 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
-        try:
-            validate_email(value)
-        except:
-            raise serializers.ValidationError("Podaj poprawny adres email.")
-
-        if CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Email jest już zajęty.")
-        return value
+        return validate_unique_email(value)
 
     def validate_username(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("Nazwa użytkownika musi mieć co najmniej 2 znaki.")
-        if len(value) > 50:
-            raise serializers.ValidationError("Nazwa użytkownika nie może przekraczać 50 znaków.")
-
-        if ' ' in value:
-            raise serializers.ValidationError("Nazwa użytkownika nie może zawierać spacji.")
-
-        if CustomUser.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Nazwa użytkownika jest już zajęta.")
-
-        return value
+        return validate_unique_username(value)
 
     def validate_password(self, value):
-        if len(value) > 100:
-            raise serializers.ValidationError("Hasło nie może być dłuższe niż 100 znaków.")
-        if len(value) < 8:
-            raise serializers.ValidationError("Hasło musi mieć co najmniej 8 znaków.")
-
-        if not re.search(r'\d', value):
-            raise serializers.ValidationError("Hasło musi zawierać co najmniej jedną cyfrę.")
-
-        if not re.search(r'[A-Z]', value):
-            raise serializers.ValidationError("Hasło musi zawierać co najmniej jedną dużą literę.")
-
-        if not re.search(r'[a-z]', value):
-            raise serializers.ValidationError("Hasło musi zawierać co najmniej jedną małą literę.")
-
-        return value
+        return validate_password_strength(value)
 
     def validate(self, data):
         if data['password'] != data['password2']:
@@ -95,16 +68,51 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username')
-    email = serializers.EmailField(source='user.email')
+    username = serializers.CharField(source='user.username', required=False)
+    email = serializers.EmailField(source='user.email', required=False)
     avatar = serializers.ImageField(required=False)
-    phone = serializers.CharField(required=False)
-    address = serializers.CharField(required=False)
-    bio = serializers.CharField(required=False)
+
+    phone_regex = RegexValidator(
+        regex=r'^\+?1?\d{9,15}$',
+        message="Numer telefonu musi być w formacie: '+999999999'. Do 15 cyfr."
+    )
+    phone = serializers.CharField(validators=[phone_regex], required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = UserProfile
         fields = ['username', 'email', 'avatar', 'phone', 'address', 'bio']
+
+    def validate(self, data):
+        user_data = data.get('user', {})
+        request_user = self.instance.user if self.instance else None
+
+        email = user_data.get('email')
+        if email:
+            validate_unique_email(email, exclude_user=request_user)
+
+        username = user_data.get('username')
+        if username:
+            validate_unique_username(username, exclude_user=request_user)
+
+        return data
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+
+        for attr in ['phone', 'address', 'bio', 'avatar']:
+            if attr in validated_data:
+                setattr(instance, attr, validated_data[attr])
+        instance.save()
+
+        user = instance.user
+        for attr in ['username', 'email']:
+            if attr in user_data:
+                setattr(user, attr, user_data[attr])
+        user.save()
+
+        return instance
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -122,17 +130,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
     def validate_new_password(self, value):
-        if len(value) > 100:
-            raise serializers.ValidationError("Nowe hasło nie może być dłuższe niż 100 znaków.")
-        if len(value) < 8:
-            raise serializers.ValidationError("Hasło musi mieć co najmniej 8 znaków.")
-        if not re.search(r'[A-Z]', value):
-            raise serializers.ValidationError("Hasło musi zawierać dużą literę.")
-        if not re.search(r'[a-z]', value):
-            raise serializers.ValidationError("Hasło musi zawierać małą literę.")
-        if not re.search(r'[0-9]', value):
-            raise serializers.ValidationError("Hasło musi zawierać cyfrę.")
-        return value
+        return validate_password_strength(value)
 
     def save(self, **kwargs):
         user = self.context['request'].user

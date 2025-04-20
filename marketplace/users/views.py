@@ -7,6 +7,9 @@ from rest_framework.exceptions import NotFound
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from django.contrib.auth import update_session_auth_hash
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UserCreateView(generics.CreateAPIView):
     serializer_class = UserSerializer
@@ -22,10 +25,26 @@ class MeView(generics.RetrieveAPIView):
         return self.request.user
 
 
-class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
+class UserProfileUpdateView(generics.UpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = UserProfile.objects.all()
+
+    def get_object(self):
+        try:
+            profile = self.request.user.profile
+            logger.info(f"Pobrano profil użytkownika: {profile.user.username}")
+            return profile
+        except UserProfile.DoesNotExist:
+            raise NotFound("Profil użytkownika nie istnieje.")
+
+    def update(self, request, *args, **kwargs):
+        logger.info(f"Dane żądania PUT/PATCH: {request.data}")
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        logger.info(f"Dane serializatora przed zapisem: {serializer.validated_data}")
+        serializer.save()
+        logger.info(f"Dane serializatora po zapisie: {serializer.instance.user.username}, {serializer.instance.user.email}")
 
 
 class PublicUserProfileView(generics.GenericAPIView):
