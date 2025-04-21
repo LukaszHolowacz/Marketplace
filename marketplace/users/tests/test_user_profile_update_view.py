@@ -21,6 +21,13 @@ def create_user():
         return user
     return make_user
 
+@pytest.fixture
+def create_inactive_user(create_user):
+    inactive_user = create_user(email="inactive@example.com", username="inactiveuser")
+    inactive_user.is_active = False
+    inactive_user.save()
+    return inactive_user
+
 @pytest.mark.django_db
 class TestUserProfileUpdate:
 
@@ -29,6 +36,16 @@ class TestUserProfileUpdate:
         self.user = create_user()
         self.profile = self.user.profile
         self.url = reverse('user-profile-update')
+
+    def test_inactive_user_cannot_update_profile(self, api_client, create_inactive_user):
+        inactive_user = create_inactive_user
+        api_client.force_authenticate(user=inactive_user)
+        payload = {
+            "bio": "Próba aktualizacji przez zablokowanego użytkownika"
+        }
+        response = api_client.patch(self.url, payload, format='json')
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert 'Twoje konto jest zablokowane.' in str(response.data)
 
     def test_update_profile_successfully(self, api_client):
         api_client.force_authenticate(user=self.user)

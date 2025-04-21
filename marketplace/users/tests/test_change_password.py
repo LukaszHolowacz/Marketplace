@@ -28,6 +28,17 @@ class TestChangePassword:
         }, format='json')
         assert response.status_code == 200, f"Login failed: {response.data}"
         return response.data['access']
+    
+    @pytest.fixture
+    def inactive_user(self):
+        user = get_user_model().objects.create_user(
+            email='inactive@example.com',
+            username='inactiveuser',
+            password='ValidPass123'
+        )
+        user.is_active = False
+        user.save()
+        return user
 
     def test_change_password_success(self, api_client, token):
         url = reverse('change-password')
@@ -48,6 +59,18 @@ class TestChangePassword:
         api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
         response = api_client.put(url, data, format='json')
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_inactive_user_cannot_access(self, api_client, inactive_user):
+        login_response = api_client.post(reverse('token_obtain_pair'), {
+            'login': inactive_user.email,
+            'password': 'ValidPass123'
+        }, format='json')
+        assert login_response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'Konto użytkownika jest zablokowane.' in str(login_response.data)
+
+        url = reverse('change-password')
+        response = api_client.get(url, HTTP_AUTHORIZATION='Bearer invalid_token')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_change_password_too_short_new_password(self, api_client, token):
         url = reverse('change-password')

@@ -13,7 +13,7 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        request = self.context.get('request') 
+        request = self.context.get('request')
         login = attrs.get('login')
         password = attrs.get('password')
 
@@ -26,7 +26,7 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
             raise AuthenticationFailed("Za dużo nieudanych prób logowania. Spróbuj później.")
 
         try:
-            if re.match(r"[^@]+@[^@]+\.[^@]+", login): 
+            if re.match(r"[^@]+@[^@]+\.[^@]+", login):
                 user = User.objects.get(email=login)
             else:
                 user = User.objects.get(username=login)
@@ -37,6 +37,9 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
         if not user.check_password(password):
             AxesProxyHandler.user_login_failed(request, credentials=credentials)
             raise AuthenticationFailed("Niepoprawne hasło.")
+
+        if not user.is_active:
+            raise AuthenticationFailed("Konto użytkownika jest zablokowane.", code='user_inactive')
 
         AxesProxyHandler.user_logged_in(sender=User, request=request, credentials=credentials, user=user)
 
