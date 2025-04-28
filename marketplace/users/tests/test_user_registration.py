@@ -277,3 +277,26 @@ class TestUserRegistration:
         response = api_client.post(url, data, format='json')
         assert response.status_code == status.HTTP_201_CREATED
         assert get_user_model().objects.filter(username='testuser').exists()
+
+    def test_user_registration_sql_injection_attempt(self, api_client):
+        url = reverse('user-create')
+        injection_payloads = [
+            "' OR '1'='1",
+            "'; DROP TABLE users; --",
+            "' UNION SELECT NULL --",
+            "'; INSERT INTO users (id, username) VALUES (9999, 'hacker'); --",
+            "' OR ''='",
+            "'; --",
+            "' OR 1=1 --"
+        ]
+
+        for payload in injection_payloads:
+            data = {
+                'username': payload,
+                'email': f"{payload}@example.com",
+                'password': 'ValidPass123',
+                'password2': 'ValidPass123'
+            }
+            response = api_client.post(url, data, format='json')
+
+            assert response.status_code == status.HTTP_400_BAD_REQUEST

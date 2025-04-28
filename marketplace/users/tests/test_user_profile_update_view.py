@@ -211,3 +211,30 @@ class TestUserProfileUpdate:
         assert response.status_code == status.HTTP_200_OK
         self.profile.refresh_from_db()
         assert self.profile.address == self.profile.address
+
+    def test_profile_update_sql_injection_attempt(self, api_client):
+        api_client.force_authenticate(user=self.user)
+        injection_payloads = [
+            "' OR '1'='1",
+            "'; DROP TABLE users; --",
+            "' UNION SELECT NULL --",
+            "'; INSERT INTO users (id, username) VALUES (9999, 'hacker'); --",
+            "' OR ''='",
+            "'; --",
+            "' OR 1=1 --"
+        ]
+
+        fields_expect_400 = ['username', 'email', 'phone']
+        fields_expect_200 = ['bio', 'address']
+
+        for field in fields_expect_400 + fields_expect_200:
+            for payload in injection_payloads:
+                data = {field: payload}
+                response = api_client.patch(self.url, data, format='json')
+
+                if field in fields_expect_400:
+                    assert response.status_code == status.HTTP_400_BAD_REQUEST, f"Expected 400 for field {field} with payload {payload}, got {response.status_code}"
+                else:
+                    assert response.status_code == status.HTTP_200_OK, f"Expected 200 for field {field} with payload {payload}, got {response.status_code}"
+
+                assert response.status_code != status.HTTP_500_INTERNAL_SERVER_ERROR
