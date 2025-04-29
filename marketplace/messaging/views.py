@@ -82,7 +82,7 @@ class MessageReadView(APIView):
 
     def patch(self, request, id):
         try:
-            message = Message.objects.get(id=id, receiver=request.user, sender__is_active=True, receiver__is_active=True)
+            message = Message.objects.get(id=id, recipient=request.user, sender__is_active=True, recipient__is_active=True)
         except Message.DoesNotExist:
             return Response({"error": "Nie znaleziono wiadomości."}, status=404)
 
